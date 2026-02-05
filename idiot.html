@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Birthday Terminal</title>
+</head>
+
+<style>
+* {
+  box-sizing: border-box;
+  font-family: Consolas, monospace;
+}
+
+body {
+  margin: 0;
+  background: #0e0e0e;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.screen {
+  width: 90%;
+  max-width: 900px;
+  height: 500px;
+  background: #1a1a1a;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.window {
+  background: black;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  width: 900px;
+  height: 500px;
+}
+
+.title-bar {
+  background: #111;
+  color: white;
+  padding: 6px 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.controls span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background: #444;
+  margin-left: 6px;
+  border-radius: 50%;
+}
+
+.terminal {
+  flex: 1;
+  padding: 12px;
+  color: #00ff00;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.input-line {
+  display: flex;
+  padding: 10px;
+  background: black;
+}
+
+.prompt {
+  color: #00ff00;
+}
+
+input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #00ff00;
+  font-size: 16px;
+}
+
+.title-bar {
+  cursor: move;
+  user-select: none;
+}
+
+
+</style>
+<body>
+
+<div class="screen">
+  <div class="window">
+    <div class="title-bar">
+      <span>Command Prompt</span>
+      <div class="controls">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+
+    <div class="terminal" id="terminal"></div>
+
+    <div class="input-line">
+      <span class="prompt">C:\User\></span>
+      <input type="text" id="input" autofocus />
+    </div>
+  </div>
+</div>
+
+<script>
+const terminal = document.getElementById("terminal");
+const input = document.getElementById("input");
+
+const name = "Idiot";
+let mode = "boot";
+let inputEnabled = false;
+
+const cakeAscii = `
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢔⠊⠳⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣳⣶⠜⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⣾⣟⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⡿⣷⣯⢷⣷⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⡶⠾⠛⠛⠻⢿⣿⣳⣯⣟⣿⣆⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⠟⠁⣀⠀⠀⠀⠀⠀⠀⠈⠉⠉⠉⠉⠻⢶⣄⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⡰⡆⠀⠀⠀⠀⠀⠀⢿⣄⠀⠉⠀⠀⠀⠀⠀⠀⠀⠀⠛⠀⠀⠀⠀⠙⣧⡀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣧⡎⠀⠀⠀⠀⠀⠀⠀⠉⣿⠛⠷⠶⣦⣤⣤⣤⣤⣤⣤⣴⠾⠓⠀⠀⠘⣷⡀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⣻⣇⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣷⠀⠀⠀
+⠀⡰⣚⡉⠉⣉⡉⠉⣠⣁⣈⠬⡇⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⡇⠀⠀
+⠀⢇⠀⠈⠉⠀⠈⠉⠀⠀⠀⣰⠃⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⡄⠈⣿⠀⠀
+⠐⠛⠛⠛⢻⣿⣿⣿⡿⠛⠛⠛⠛⠀⠀⢠⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⢹⡆⠀
+⠀⠀⠀⠀⠀⠀⠀⠈⠻⣆⠀⠀⠀⠀⢠⡿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⠇⠀⠘⣧⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⢷⣄⣀⣰⡟⠁⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⣿⡄
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠛⠉⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⢹⡇
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣰⣏⠀⠀⠀⠘⣷
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢿⡿⠀⠀⠀⠀⣿
+`;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function clearScreen() {
+  terminal.textContent = "";
+}
+
+async function slowPrint(text, delay = 30) {
+  inputEnabled = false;
+  for (const char of text) {
+    terminal.textContent += char;
+    terminal.scrollTop = terminal.scrollHeight;
+    await sleep(delay);
+  }
+  terminal.textContent += "\n";
+}
+
+async function loadingBar() {
+  inputEnabled = false;
+
+
+  const startLength = terminal.textContent.length;
+
+  for (let i = 0; i <= 100; i += 10) {
+    const filled = "█".repeat(i / 10);
+    const empty = "▒".repeat(10 - i / 10);
+    const bar = `[${filled}${empty}] ${i}%`;
+    terminal.textContent =
+      terminal.textContent.slice(0, startLength) + bar;
+
+    terminal.scrollTop = terminal.scrollHeight;
+    await sleep(200);
+  }
+
+  terminal.textContent += "\n\n";
+}
+
+
+async function startProgram() {
+  clearScreen();
+  await slowPrint("Initializing Birthday Protocol v2.0…");
+  await slowPrint("Authenticating user…");
+  await loadingBar();
+  await slowPrint("Access granted.\n");
+
+  await slowPrint("Fetching user profile…");
+  await slowPrint(`Name   : ${name}`);
+  await slowPrint("Role   : Coder | Valo-Obsessed Gamer | Certified Anime Fan");
+  await slowPrint("Status : Online\n");
+
+  await slowPrint("🎉 BIRTHDAY DETECTED 🎉\n");
+
+  await sleep(1000);
+  await slowPrint("Running system diagnostics…\n");
+
+  const checks = [
+    "✔  Logic: sharp",
+    "✔  Humor: decent",
+    "✔  Patience: 0"
+  ];
+
+  for (const c of checks) {
+    await slowPrint(c);
+    await sleep(400);
+  }
+
+  await sleep(800);
+  await slowPrint("\nERROR: Age has incremented by +1");
+  await sleep(600);
+  await slowPrint("Attempting to process…");
+  await sleep(1000);
+  await slowPrint("Processing successful.\n");
+
+  await slowPrint("Compiling memories…\n");
+
+  const memories = [
+    "Long calls while on evening walks",
+    "Crushing competiton in tech events :D",
+    "Random convos n sharing memes",
+    "Constant banter and roasting in school (I win those btw XD)"
+  ];
+
+  for (const m of memories) {
+    await slowPrint(`• ${m}`);
+    await sleep(500);
+  }
+
+  await sleep(1000);
+  await slowPrint("\nCompilation successful.\n");
+
+  await slowPrint("You're the best! (I don't say this often, don't get used to it)\n");
+
+  await showMenu();
+}
+
+
+async function showMenu() {
+  await slowPrint("Select an option:");
+  await slowPrint("[1] Run Compliment.exe");
+  await slowPrint("[2] Load Birthday Message");
+  await slowPrint("[3] Spawn Cake");
+  mode = "menu";
+  inputEnabled = true;
+}
+
+async function handleMenu(choice) {
+  if (choice === "1") {
+    const compliments = [
+      "You are easy to talk to, which is rare.",
+      "I will never admit it, but you are funny.",
+      "You're an amazing person to be around."
+    ];
+    await slowPrint(compliments[Math.floor(Math.random() * compliments.length)] + "\n");
+  }
+  else if (choice === "2") {
+    await slowPrint(`Happy Birthday, ${name}.`);
+    await slowPrint("Thanks for being someone I trust,");
+    await slowPrint("rely on, and share my thoughts with.");
+    await slowPrint("I’m really glad to have you as a friend.\n");
+  }
+  else if (choice === "3") {
+    terminal.textContent += cakeAscii + "\n";
+  }
+  else {
+    await slowPrint("Invalid input.\n");
+  }
+
+  await slowPrint("Run another command? (y/n):");
+  mode = "again";
+  inputEnabled = true;
+}
+
+async function endProgram() {
+  await slowPrint("\nSaving this moment…");
+  await slowPrint("Memory stored successfully.");
+  await slowPrint("Process completed successfully.");
+  inputEnabled = false;
+}
+
+input.addEventListener("keydown", async e => {
+  if (e.key !== "Enter" || !inputEnabled) return;
+
+  const value = input.value.trim();
+  input.value = "";
+  terminal.textContent += `C:\\User\\> ${value}\n`;
+
+  inputEnabled = false;
+
+  if (mode === "menu") await handleMenu(value);
+  else if (mode === "again") {
+    if (value.toLowerCase() === "y") await showMenu();
+    else await endProgram();
+  }
+});
+
+//draggable screen
+const windowEl = document.querySelector(".window");
+const titleBar = document.querySelector(".title-bar");
+
+let isDragging = false;
+let offsetX = 0;
+let offsetY = 0;
+
+titleBar.addEventListener("mousedown", (e) => {
+  isDragging = true;
+  offsetX = e.clientX - windowEl.offsetLeft;
+  offsetY = e.clientY - windowEl.offsetTop;
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
+
+  windowEl.style.left = `${e.clientX - offsetX}px`;
+  windowEl.style.top = `${e.clientY - offsetY}px`;
+});
+
+document.addEventListener("mouseup", () => {
+  isDragging = false;
+});
+
+
+startProgram();
+</script>
+
+
+</body>
+</html>
